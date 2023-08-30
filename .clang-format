@@ -1,0 +1,6 @@
+BasedOnStyle: Google
+Language: Cpp
+
+# SingleLine
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: Empty
