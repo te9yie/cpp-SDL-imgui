@@ -32,6 +32,12 @@ int main(int /*argc*/, char* /*argv*/[]) {
   }
   atexit(SDL_Quit);
 
+  if (TTF_Init() < 0) {
+    SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "TTF_Init: %s", TTF_GetError());
+    return EXIT_FAILURE;
+  }
+  atexit(TTF_Quit);
+
   const char* TITLE = "Game";
   const int SCREEN_WIDTH = 16 * 60;
   const int SCREEN_HEIGH = 9 * 60;
