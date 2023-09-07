@@ -1,5 +1,6 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "task/job.h"
 
 namespace {
 
@@ -16,6 +17,29 @@ struct DestroyRenderer {
   }
 };
 using RendererPtr = std::unique_ptr<SDL_Renderer, DestroyRenderer>;
+
+class LogJob : public task::Job {
+ private:
+  int id_ = 0;
+  task::JobSystem* jobs_ = nullptr;
+
+ public:
+  LogJob(int id) : id_(id) {}
+  LogJob(int id, task::JobSystem* jobs) : id_(id), jobs_(jobs) {}
+
+ protected:
+  virtual void on_exec() override {
+    SDL_Log("#%d: in %u", id_, SDL_GetThreadID(nullptr));
+    SDL_Delay(1);
+    if (jobs_) {
+      for (int i = 0; i < 2; ++i) {
+        auto job = std::make_shared<LogJob>(100 * id_ + i);
+        add_child(job);
+        jobs_->insert_job(job);
+      }
+    }
+  }
+};
 
 }  // namespace
 
@@ -64,6 +88,11 @@ int main(int /*argc*/, char* /*argv*/[]) {
   ImGui_ImplSDL2_InitForSDLRenderer(window.get(), renderer.get());
   ImGui_ImplSDLRenderer2_Init(renderer.get());
 
+  task::JobSystem jobs;
+  if (!jobs.init(2)) {
+    return EXIT_FAILURE;
+  }
+
   bool loop = true;
   while (loop) {
     {
@@ -91,6 +120,21 @@ int main(int /*argc*/, char* /*argv*/[]) {
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
+    if (ImGui::Button("Add Jobs")) {
+      std::vector<std::shared_ptr<LogJob>> logs;
+      for (int i = 0; i < 10; ++i) {
+        logs.emplace_back(
+            std::make_shared<LogJob>(i + 1, i == 1 ? &jobs : nullptr));
+      }
+      logs[2]->add_prerequisite(logs[1]);
+      logs[3]->add_prerequisite(logs[5]);
+      logs[4]->add_prerequisite(logs[5]);
+      logs[4]->add_prerequisite(logs[7]);
+      for (auto it : logs) {
+        jobs.add_job(std::move(it));
+      }
+    }
+
     ImGui::Render();
 
     SDL_SetRenderDrawColor(renderer.get(), 0x12, 0x34, 0x56, 0xff);
@@ -100,6 +144,8 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
     SDL_RenderPresent(renderer.get());
   }
+
+  jobs.quit();
 
   ImGui_ImplSDLRenderer2_Shutdown();
   ImGui_ImplSDL2_Shutdown();
