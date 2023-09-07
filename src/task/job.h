@@ -22,8 +22,8 @@ class Job {
   State state_ = State::NONE;
   JobObserver* observer_ = nullptr;
   SDL_atomic_t prerequisite_count_;
-  std::deque<std::shared_ptr<Job>> prerequisites_;
-  std::deque<Job*> dependencies_;
+  std::vector<std::shared_ptr<Job>> prerequisites_;
+  std::vector<Job*> dependencies_;
   SDL_atomic_t child_count_;
   Job* parent_ = nullptr;
 
@@ -81,7 +81,7 @@ class JobSystem : private JobObserver {
   MutexPtr mutex_;
   ConditionPtr condition_;
   SDL_atomic_t is_quit_;
-  std::deque<std::shared_ptr<Job>> jobs_;
+  std::list<std::shared_ptr<Job>> jobs_;
 
  public:
   JobSystem();
