@@ -1,6 +1,6 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
-#include "task/job.h"
+#include "task/prelude.h"
 
 namespace {
 
@@ -39,6 +39,10 @@ class LogJob : public task::Job {
       }
     }
   }
+};
+
+struct Counter {
+  int count = 0;
 };
 
 }  // namespace
@@ -93,6 +97,34 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return EXIT_FAILURE;
   }
 
+  task::Context context;
+  context.set(&jobs);
+
+  task::TaskSystem tasks;
+
+  tasks.add_task("counter 1", [](task::WorkRef<Counter> counter) {
+    ImGui::InputInt("count 1", &counter->count);
+  });
+  tasks.add_task("counter 2", [](task::WorkRef<Counter> counter) {
+    ImGui::InputInt("count 2", &counter->count);
+  });
+  tasks.add_task("add job", [](task::JobSystem* jobs) {
+    if (ImGui::Button("Add Jobs")) {
+      std::vector<std::shared_ptr<LogJob>> logs;
+      for (int i = 0; i < 10; ++i) {
+        logs.emplace_back(
+            std::make_shared<LogJob>(i + 1, i == 1 ? jobs : nullptr));
+      }
+      logs[2]->add_prerequisite(logs[1]);
+      logs[3]->add_prerequisite(logs[5]);
+      logs[4]->add_prerequisite(logs[5]);
+      logs[4]->add_prerequisite(logs[7]);
+      for (auto it : logs) {
+        jobs->add_job(std::move(it));
+      }
+    }
+  });
+
   bool loop = true;
   while (loop) {
     {
@@ -120,20 +152,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
-    if (ImGui::Button("Add Jobs")) {
-      std::vector<std::shared_ptr<LogJob>> logs;
-      for (int i = 0; i < 10; ++i) {
-        logs.emplace_back(
-            std::make_shared<LogJob>(i + 1, i == 1 ? &jobs : nullptr));
-      }
-      logs[2]->add_prerequisite(logs[1]);
-      logs[3]->add_prerequisite(logs[5]);
-      logs[4]->add_prerequisite(logs[5]);
-      logs[4]->add_prerequisite(logs[7]);
-      for (auto it : logs) {
-        jobs.add_job(std::move(it));
-      }
-    }
+    tasks.exec_tasks(context);
 
     ImGui::Render();
 
