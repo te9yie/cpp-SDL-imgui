@@ -2,16 +2,24 @@
 
 namespace debug {
 
+bool Profiler::init() {
+  t9::sdl2::MutexPtr mutex(SDL_CreateMutex());
+  if (!mutex) {
+    return false;
+  }
+  return true;
+}
+
 void Profiler::setup_for_this_thread(std::string_view name) {
   SDL_assert(!is_swapped_);
   auto id = SDL_ThreadID();
-  std::string thread_name(name);
-  threads_.emplace(id, ThreadData{thread_name, nullptr});
+  SDL_LockMutex(mutex_.get());
+  threads_.emplace(id, ThreadData{std::string(name), nullptr});
+  SDL_UnlockMutex(mutex_.get());
 }
 
 void Profiler::swap() {
   if (!is_swapped_) {
-    setup_for_this_thread("Main Thread");
     is_swapped_ = true;
   }
 
@@ -39,6 +47,8 @@ void Profiler::begin_tag(std::string_view name) {
     return;
   }
 
+  SDL_assert(it->second.timeline);
+
   TagData tag;
   tag.type = TagData::Type::BEGIN;
   tag.begin.count = SDL_GetPerformanceCounter();
@@ -56,6 +66,8 @@ void Profiler::end_tag() {
   if (it == threads_.end()) {
     return;
   }
+
+  SDL_assert(it->second.timeline);
 
   TagData tag;
   tag.type = TagData::Type::END;

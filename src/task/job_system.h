@@ -1,22 +1,9 @@
 #pragma once
 
 #include "job.h"
+#include "t9/sdl2/mutex.h"
 
 namespace task {
-
-struct DestroyMutex {
-  void operator()(SDL_mutex* m) const {
-    SDL_DestroyMutex(m);
-  }
-};
-using MutexPtr = std::unique_ptr<SDL_mutex, DestroyMutex>;
-
-struct DestroyCondition {
-  void operator()(SDL_cond* c) const {
-    SDL_DestroyCond(c);
-  }
-};
-using ConditionPtr = std::unique_ptr<SDL_cond, DestroyCondition>;
 
 class JobSystem {
  private:
@@ -26,8 +13,8 @@ class JobSystem {
  private:
   std::vector<SDL_Thread*> threads_;
   SDL_atomic_t wait_thread_count_;
-  MutexPtr mutex_;
-  ConditionPtr condition_;
+  t9::sdl2::MutexPtr mutex_;
+  t9::sdl2::ConditionPtr condition_;
   SDL_atomic_t is_quit_;
   SDL_atomic_t job_count_;
   std::list<std::shared_ptr<Job>> jobs_;

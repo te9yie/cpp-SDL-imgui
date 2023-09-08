@@ -1,5 +1,6 @@
 #pragma once
 
+#include "t9/sdl2/mutex.h"
 #include "t9/singleton.h"
 
 namespace debug {
@@ -46,8 +47,10 @@ class Profiler : public t9::Singleton<Profiler> {
   std::size_t frame_index_ = 0;
   std::size_t frame_count_ = 0;
   bool is_swapped_ = false;
+  t9::sdl2::MutexPtr mutex_;
 
  public:
+  bool init();
   void setup_for_this_thread(std::string_view name);
   void swap();
   void begin_tag(std::string_view name);

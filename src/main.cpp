@@ -92,6 +92,9 @@ int main(int /*argc*/, char* /*argv*/[]) {
   }
 
   debug::Profiler profiler;
+  if (!profiler.init()) {
+    return EXIT_FAILURE;
+  }
 
   debug::Gui gui;
   if (!gui.init(window.get(), renderer.get())) {
@@ -177,7 +180,6 @@ int main(int /*argc*/, char* /*argv*/[]) {
                 })
       ->set_exec_on_current_thread();
 
-  profiler.swap();
   tasks.run();
 
   return EXIT_SUCCESS;

@@ -11,13 +11,17 @@ void TaskSystem::run() {
   setup_dependencies_();
   auto jobs = context_.get<JobSystem>();
   SDL_assert(jobs);
+  PERF_SETUP("Main Thread");
   while (data_.is_loop) {
     PERF_SWAP();
-    for (auto& task_job : tasks_) {
-      task_job->reset();
-    }
-    for (auto& task_job : tasks_) {
-      jobs->add_job(task_job);
+    {
+      PERF_TAG("setup jobs");
+      for (auto& task_job : tasks_) {
+        task_job->reset();
+      }
+      for (auto& task_job : tasks_) {
+        jobs->add_job(task_job);
+      }
     }
     jobs->exec_all_jobs();
   }

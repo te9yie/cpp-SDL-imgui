@@ -16,7 +16,7 @@ bool JobSystem::init(std::size_t thread_count) {
   SDL_AtomicSet(&wait_thread_count_, 0);
 
   // mutex.
-  MutexPtr mutex(SDL_CreateMutex());
+  t9::sdl2::MutexPtr mutex(SDL_CreateMutex());
   if (!mutex) {
     SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "SDL_CreateMutex: %s",
                     SDL_GetError());
@@ -24,7 +24,7 @@ bool JobSystem::init(std::size_t thread_count) {
   }
 
   // condition.
-  ConditionPtr condition(SDL_CreateCond());
+  t9::sdl2::ConditionPtr condition(SDL_CreateCond());
   if (!condition) {
     SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "SDL_CreateCond: %s",
                     SDL_GetError());
@@ -39,7 +39,7 @@ bool JobSystem::init(std::size_t thread_count) {
   threads_.resize(thread_count);
   char name[128];
   for (std::size_t i = 0; i < thread_count && is_success; ++i) {
-    SDL_snprintf(name, sizeof(name), "JobThread %2u", i);
+    SDL_snprintf(name, sizeof(name), "JobThread %02u", i);
     auto thread = threads_[i] =
         SDL_CreateThread(JobSystem::job_thread_, name, this);
     if (thread) {
@@ -51,14 +51,13 @@ bool JobSystem::init(std::size_t thread_count) {
     }
   }
 
+  while (SDL_AtomicGet(&wait_thread_count_) > 0) {
+    SDL_Delay(0);
+  }
+
   if (!is_success) {
     quit();
     return false;
-  }
-
-  // wait for all threads to start.
-  while (SDL_AtomicGet(&wait_thread_count_) > 0) {
-    SDL_Delay(0);
   }
 
   return true;
@@ -140,7 +139,7 @@ void JobSystem::exec_jobs_() {
         break;
       }
     }
-    if (!job) {
+    if (!job && SDL_AtomicGet(&is_quit_) == 0) {
       SDL_CondWait(condition_.get(), mutex_.get());
     }
     SDL_UnlockMutex(mutex_.get());
