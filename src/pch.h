@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <deque>
 #include <functional>
+#include <iterator>
 #include <list>
 #include <memory>
 #include <set>

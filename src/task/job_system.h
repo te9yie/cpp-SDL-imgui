@@ -28,6 +28,7 @@ class JobSystem : private JobObserver {
   MutexPtr mutex_;
   ConditionPtr condition_;
   SDL_atomic_t is_quit_;
+  SDL_atomic_t job_count_;
   std::list<std::shared_ptr<Job>> jobs_;
 
  public:
@@ -40,11 +41,14 @@ class JobSystem : private JobObserver {
   bool add_job(std::shared_ptr<Job> job);
   bool insert_job(std::shared_ptr<Job> job);
 
+  void exec_all_jobs();
+
  private:
   // JobObserver.
   virtual void on_job_done() override;
 
  private:
+  void exec_jobs_in_thread_();
   void exec_jobs_();
 
  private:

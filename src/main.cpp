@@ -24,8 +24,8 @@ class LogJob : public task::Job {
   task::JobSystem* jobs_ = nullptr;
 
  public:
-  LogJob(int id) : id_(id) {}
-  LogJob(int id, task::JobSystem* jobs) : id_(id), jobs_(jobs) {}
+  LogJob(int id) : Job("LogJob"), id_(id) {}
+  LogJob(int id, task::JobSystem* jobs) : Job("LogJob"), id_(id), jobs_(jobs) {}
 
  protected:
   virtual void on_exec() override {
@@ -44,6 +44,8 @@ class LogJob : public task::Job {
 struct Counter {
   int count = 0;
 };
+
+struct DebugGui;
 
 }  // namespace
 
@@ -97,10 +99,25 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return EXIT_FAILURE;
   }
 
-  task::Context context;
-  context.set(&jobs);
-
   task::TaskSystem tasks;
+  tasks.set_context(&jobs);
+
+  tasks
+      .add_task("handle events",
+                [](DebugGui*, task::TaskSystemData* tasks) {
+                  SDL_Event e;
+                  while (SDL_PollEvent(&e)) {
+                    ImGui_ImplSDL2_ProcessEvent(&e);
+                    switch (e.type) {
+                      case SDL_QUIT:
+                        tasks->is_loop = false;
+                        break;
+                      default:
+                        break;
+                    }
+                  }
+                })
+      ->set_exec_on_current_thread();
 
   tasks.add_task("counter 1", [](task::WorkRef<Counter> counter) {
     ImGui::InputInt("count 1", &counter->count);
@@ -127,32 +144,16 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
   bool loop = true;
   while (loop) {
-    {
-      SDL_Event e;
-      while (SDL_PollEvent(&e)) {
-        ImGui_ImplSDL2_ProcessEvent(&e);
-        switch (e.type) {
-          case SDL_QUIT:
-            loop = false;
-            break;
-          case SDL_WINDOWEVENT:
-            if (e.window.event == SDL_WINDOWEVENT_CLOSE &&
-                e.window.windowID == SDL_GetWindowID(window.get())) {
-              loop = false;
-            }
-            break;
-        }
-      }
-    }
+    {}
 
-    int w, h;
-    SDL_GetRendererOutputSize(renderer.get(), &w, &h);
+    /*
+        int w, h;
+        SDL_GetRendererOutputSize(renderer.get(), &w, &h);
+        */
 
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
-
-    tasks.exec_tasks(context);
 
     ImGui::Render();
 

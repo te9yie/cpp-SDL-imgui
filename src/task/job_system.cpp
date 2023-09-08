@@ -10,6 +10,7 @@ JobSystem::JobSystem() {}
 
 bool JobSystem::init(std::size_t thread_count) {
   SDL_AtomicSet(&is_quit_, 0);
+  SDL_AtomicSet(&job_count_, 0);
 
   // mutex.
   MutexPtr mutex(SDL_CreateMutex());
@@ -79,6 +80,7 @@ bool JobSystem::add_job(std::shared_ptr<Job> job) {
   SDL_LockMutex(mutex_.get());
   job->submit(this);
   jobs_.emplace_back(std::move(job));
+  SDL_AtomicIncRef(&job_count_);
   SDL_CondSignal(condition_.get());
   SDL_UnlockMutex(mutex_.get());
 
@@ -93,54 +95,66 @@ bool JobSystem::insert_job(std::shared_ptr<Job> job) {
   SDL_LockMutex(mutex_.get());
   job->submit(this);
   jobs_.emplace_front(std::move(job));
+  SDL_AtomicIncRef(&job_count_);
   SDL_CondSignal(condition_.get());
   SDL_UnlockMutex(mutex_.get());
 
   return true;
 }
 
+void JobSystem::exec_all_jobs() {
+  while (SDL_AtomicGet(&job_count_) > 0) {
+    exec_jobs_();
+  }
+}
+
 /*virtual*/ void JobSystem::on_job_done() /*override*/ {
   SDL_LockMutex(mutex_.get());
-  SDL_CondSignal(condition_.get());
+  SDL_CondBroadcast(condition_.get());
   SDL_UnlockMutex(mutex_.get());
 }
 
-void JobSystem::exec_jobs_() {
+void JobSystem::exec_jobs_in_thread_() {
   while (SDL_AtomicGet(&is_quit_) == 0) {
-    std::shared_ptr<Job> job;
-    {
-      SDL_LockMutex(mutex_.get());
-      for (auto it = jobs_.begin(); it != jobs_.end(); ++it) {
-        if ((*it)->can_exec() || (*it)->can_done()) {
-          job = std::move(*it);
-          jobs_.erase(it);
-          break;
-        }
+    exec_jobs_();
+  }
+}
+
+void JobSystem::exec_jobs_() {
+  std::shared_ptr<Job> job;
+  {
+    SDL_LockMutex(mutex_.get());
+    for (auto it = jobs_.begin(); it != jobs_.end(); ++it) {
+      if ((*it)->can_exec() || (*it)->can_done()) {
+        job = std::move(*it);
+        jobs_.erase(it);
+        break;
       }
-      if (!job) {
-        SDL_CondWait(condition_.get(), mutex_.get());
-      }
-      SDL_UnlockMutex(mutex_.get());
     }
     if (!job) {
-      continue;
+      SDL_CondWait(condition_.get(), mutex_.get());
     }
-    if (job->can_exec()) {
-      job->exec();
-    }
-    if (job->can_done()) {
-      job->done();
-    } else {
-      SDL_LockMutex(mutex_.get());
-      jobs_.emplace_front(std::move(job));
-      SDL_UnlockMutex(mutex_.get());
-    }
+    SDL_UnlockMutex(mutex_.get());
+  }
+  if (!job) {
+    return;
+  }
+  if (job->can_exec()) {
+    job->exec();
+  }
+  if (job->can_done()) {
+    job->done();
+    SDL_AtomicDecRef(&job_count_);
+  } else {
+    SDL_LockMutex(mutex_.get());
+    jobs_.emplace_front(std::move(job));
+    SDL_UnlockMutex(mutex_.get());
   }
 }
 
 /*static*/ int JobSystem::job_thread_(void* args) {
   auto self = static_cast<JobSystem*>(args);
-  self->exec_jobs_();
+  self->exec_jobs_in_thread_();
   return 0;
 }
 

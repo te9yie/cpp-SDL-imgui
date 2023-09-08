@@ -2,8 +2,8 @@
 
 namespace task {
 
-Task::Task(std::string_view name, const Permission& permission)
-    : name_(name), permission_(permission) {}
+/*explicit*/ Task::Task(const Permission& permission)
+    : permission_(permission) {}
 
 void Task::exec(const Context& ctx) {
   on_exec(ctx, &work_);

@@ -2,6 +2,8 @@
 
 namespace task {
 
+/*explicit*/ Job::Job(std::string_view name) : name_(name) {}
+
 bool Job::can_submit() const {
   return state_ == State::NONE;
 }

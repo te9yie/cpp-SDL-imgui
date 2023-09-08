@@ -26,8 +26,10 @@ class Job {
   std::vector<Job*> dependencies_;
   SDL_atomic_t child_count_;
   Job* parent_ = nullptr;
+  std::string name_;
 
  public:
+  explicit Job(std::string_view name);
   virtual ~Job() = default;
 
   bool can_submit() const;
@@ -44,6 +46,10 @@ class Job {
 
   State state() const {
     return state_;
+  }
+
+  const std::string& name() const {
+    return name_;
   }
 
  private:

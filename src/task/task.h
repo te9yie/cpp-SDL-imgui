@@ -1,11 +1,12 @@
 #pragma once
 
-#include "context.h"
 #include "permission.h"
 #include "task_traits.h"
 #include "work.h"
 
 namespace task {
+
+class Context;
 
 class Task {
  private:
@@ -13,19 +14,15 @@ class Task {
   Task& operator=(const Task&) = delete;
 
  private:
-  std::string name_;
   Permission permission_;
   Work work_;
 
  public:
-  Task(std::string_view name, const Permission& permission);
+  explicit Task(const Permission& permission);
   virtual ~Task() = default;
 
   void exec(const Context& ctx);
 
-  const std::string& name() const {
-    return name_;
-  }
   const Permission& permission() const {
     return permission_;
   }
@@ -44,8 +41,7 @@ class FuncTask : public Task {
 
  public:
   template <typename F>
-  FuncTask(std::string_view name, F&& f)
-      : Task(name, make_permission<As...>()), func_(std::forward<F>(f)) {}
+  FuncTask(F&& f) : Task(make_permission<As...>()), func_(std::forward<F>(f)) {}
 
  protected:
   virtual void on_exec(const Context& ctx, Work* work) {
