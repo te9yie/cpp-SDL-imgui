@@ -11,7 +11,7 @@ void TaskSystem::run() {
   setup_dependencies_();
   auto jobs = context_.get<JobSystem>();
   SDL_assert(jobs);
-  PERF_SETUP("Main Thread");
+  PERF_SETUP("@Main Thread");
   while (data_.is_loop) {
     PERF_SWAP();
     {

@@ -50,7 +50,6 @@ bool JobSystem::init(std::size_t thread_count) {
       is_success = false;
     }
   }
-
   while (SDL_AtomicGet(&wait_thread_count_) > 0) {
     SDL_Delay(0);
   }
@@ -66,10 +65,11 @@ bool JobSystem::init(std::size_t thread_count) {
 void JobSystem::quit() {
   if (!mutex_) return;
 
-  SDL_LockMutex(mutex_.get());
-  SDL_AtomicSet(&is_quit_, 1);
-  SDL_CondBroadcast(condition_.get());
-  SDL_UnlockMutex(mutex_.get());
+  {
+    t9::sdl2::ScopedLock lock(mutex_.get());
+    SDL_AtomicSet(&is_quit_, 1);
+    SDL_CondBroadcast(condition_.get());
+  }
 
   for (SDL_Thread* thread : threads_) {
     if (!thread) continue;
@@ -86,11 +86,12 @@ bool JobSystem::add_job(std::shared_ptr<Job> job) {
     return false;
   }
 
-  SDL_LockMutex(mutex_.get());
-  job->submit();
-  jobs_.emplace_back(std::move(job));
-  SDL_AtomicIncRef(&job_count_);
-  SDL_UnlockMutex(mutex_.get());
+  {
+    t9::sdl2::ScopedLock lock(mutex_.get());
+    job->submit();
+    jobs_.emplace_back(std::move(job));
+    SDL_AtomicIncRef(&job_count_);
+  }
 
   return true;
 }
@@ -100,19 +101,19 @@ bool JobSystem::insert_job(std::shared_ptr<Job> job) {
     return false;
   }
 
-  SDL_LockMutex(mutex_.get());
-  job->submit();
-  jobs_.emplace_front(std::move(job));
-  SDL_AtomicIncRef(&job_count_);
-  SDL_UnlockMutex(mutex_.get());
+  {
+    t9::sdl2::ScopedLock lock(mutex_.get());
+    job->submit();
+    jobs_.emplace_front(std::move(job));
+    SDL_AtomicIncRef(&job_count_);
+  }
 
   return true;
 }
 
 void JobSystem::kick_jobs() {
-  SDL_LockMutex(mutex_.get());
+  t9::sdl2::ScopedLock lock(mutex_.get());
   SDL_CondBroadcast(condition_.get());
-  SDL_UnlockMutex(mutex_.get());
 }
 
 void JobSystem::exec_all_jobs() {
@@ -131,7 +132,7 @@ void JobSystem::exec_jobs_in_thread_() {
 void JobSystem::exec_jobs_() {
   std::shared_ptr<Job> job;
   {
-    SDL_LockMutex(mutex_.get());
+    t9::sdl2::ScopedLock lock(mutex_.get());
     for (auto it = jobs_.begin(); it != jobs_.end(); ++it) {
       if ((*it)->can_exec() || (*it)->can_done()) {
         job = std::move(*it);
@@ -142,7 +143,6 @@ void JobSystem::exec_jobs_() {
     if (!job && SDL_AtomicGet(&is_quit_) == 0) {
       SDL_CondWait(condition_.get(), mutex_.get());
     }
-    SDL_UnlockMutex(mutex_.get());
   }
   if (!job) {
     return;
@@ -152,14 +152,14 @@ void JobSystem::exec_jobs_() {
   }
   if (job->can_done()) {
     job->done();
-    SDL_LockMutex(mutex_.get());
-    SDL_AtomicDecRef(&job_count_);
-    SDL_CondBroadcast(condition_.get());
-    SDL_UnlockMutex(mutex_.get());
+    {
+      t9::sdl2::ScopedLock lock(mutex_.get());
+      SDL_AtomicDecRef(&job_count_);
+      SDL_CondBroadcast(condition_.get());
+    }
   } else {
-    SDL_LockMutex(mutex_.get());
+    t9::sdl2::ScopedLock lock(mutex_.get());
     jobs_.emplace_front(std::move(job));
-    SDL_UnlockMutex(mutex_.get());
   }
 }
 

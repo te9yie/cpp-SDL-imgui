@@ -1,5 +1,8 @@
 #include "perf.h"
 
+#include "t9/color.h"
+#include "t9/hash.h"
+
 namespace debug {
 
 bool Profiler::init() {
@@ -13,9 +16,11 @@ bool Profiler::init() {
 void Profiler::setup_for_this_thread(std::string_view name) {
   SDL_assert(!is_swapped_);
   auto id = SDL_ThreadID();
-  SDL_LockMutex(mutex_.get());
-  threads_.emplace(id, ThreadData{std::string(name), nullptr});
-  SDL_UnlockMutex(mutex_.get());
+  SDL_Log("Setup thread: (%u)%s", id, name.data());
+  {
+    t9::sdl2::ScopedLock lock(mutex_.get());
+    threads_.emplace(id, ThreadData{std::string(name), nullptr});
+  }
 }
 
 void Profiler::swap() {
@@ -30,7 +35,7 @@ void Profiler::swap() {
   for (auto& it : threads_) {
     auto& thread = it.second;
     auto& timeline = frame->timelines.emplace_back();
-    timeline.name = thread.name.data();
+    timeline.name = thread.name.c_str();
     thread.timeline = &timeline;
   }
 
@@ -90,21 +95,6 @@ void Profiler::show_debug_gui() {
     if (ImGui::CollapsingHeader(timeline.name)) {
       std::stack<Profiler::TagData> tags;
 
-      /*
-      for (auto tag : timeline.tags) {
-        if (tag.type == Profiler::TagData::Type::BEGIN) {
-          tags.push(tag);
-        } else if (tag.type == Profiler::TagData::Type::END) {
-          if (tags.empty()) continue;
-          auto span = tag.end.count - tags.top().begin.count;
-          ImGui::Text("%s: %zu", tags.top().begin.name, span);
-          tags.pop();
-        }
-      }
-      */
-
-      ImGui::Separator();
-
       auto offset = ImGui::GetCursorScreenPos();
       auto region = ImGui::GetContentRegionAvail();
       auto height = ImGui::GetTextLineHeightWithSpacing();
@@ -118,16 +108,24 @@ void Profiler::show_debug_gui() {
           tags.push(tag);
         } else if (tag.type == Profiler::TagData::Type::END) {
           if (tags.empty()) continue;
-          auto begin = tags.top().begin.count;
+          auto& start_tag = tags.top();
+          auto name_hash = t9::fxhash(start_tag.begin.name,
+                                      std::strlen(start_tag.begin.name));
+          auto begin = start_tag.begin.count;
           auto end = tag.end.count;
           tags.pop();
 
           auto depth = tags.size();
+          auto h = 1.0f * name_hash / std::numeric_limits<std::uint32_t>::max();
+          auto rgb = t9::hsv2rgb(h, 0.95f, 0.95f);
           auto p0 = ImVec2(offset.x + count2coord(begin - frame->begin_count),
                            offset.y + depth * height);
           auto p1 = ImVec2(offset.x + count2coord(end - frame->begin_count),
                            offset.y + (depth + 1) * height);
-          drawer->AddRectFilled(p0, p1, ImColor(1.0f, 1.0f, 1.0f, 1.0f));
+          drawer->AddRectFilled(p0, p1, ImColor(rgb.r, rgb.g, rgb.b));
+          if (ImGui::IsMouseHoveringRect(p0, p1)) {
+            ImGui::SetTooltip("%s", start_tag.begin.name);
+          }
         }
       }
     }

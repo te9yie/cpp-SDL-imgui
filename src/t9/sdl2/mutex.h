@@ -20,4 +20,17 @@ struct DestroyCondition {
 };
 using ConditionPtr = std::unique_ptr<SDL_cond, DestroyCondition>;
 
+class ScopedLock {
+ private:
+  SDL_mutex* mutex_ = nullptr;
+
+ public:
+  explicit ScopedLock(SDL_mutex* mutex) : mutex_(mutex) {
+    SDL_LockMutex(mutex_);
+  }
+  ~ScopedLock() {
+    SDL_UnlockMutex(mutex_);
+  }
+};
+
 }  // namespace t9::sdl2

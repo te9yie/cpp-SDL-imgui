@@ -11,11 +11,13 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <functional>
 #include <iterator>
 #include <list>
 #include <memory>
+#include <numeric>
 #include <set>
 #include <stack>
 #include <string>

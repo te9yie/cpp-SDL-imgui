@@ -4,18 +4,6 @@
 
 namespace task {
 
-/// @brief Work for Task.
-/**
- *  @code
- *  Work work;
- *  work.emplace<int>(10);
- *  work.emplace<std::string>("Hello");
- *
- *  assert(*work.get<int>() == 10);
- *  assert(*work.get<std::string>() == "Hello");
- *  assert(work.get<float>() == nullptr);
- *  @endcode
- */
 class Work {
  private:
   Work(const Work&) = delete;
