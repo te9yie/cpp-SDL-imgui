@@ -8,12 +8,12 @@ TaskJob::TaskJob(std::string_view name, std::unique_ptr<Task> task,
 
 void TaskJob::set_exec_on_current_thread() {
   check_thread_ = true;
-  thread_id_ = SDL_GetThreadID(nullptr);
+  thread_id_ = SDL_ThreadID();
 }
 
 /*virtual*/ bool TaskJob::on_can_exec() const /*override*/ {
   if (check_thread_) {
-    if (thread_id_ != SDL_GetThreadID(nullptr)) {
+    if (thread_id_ != SDL_ThreadID()) {
       return false;
     }
   }

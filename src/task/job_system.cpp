@@ -1,5 +1,7 @@
 #include "job_system.h"
 
+#include "debug/perf.h"
+
 namespace task {
 
 JobSystem::JobSystem() {}
@@ -81,7 +83,6 @@ bool JobSystem::add_job(std::shared_ptr<Job> job) {
   job->submit(this);
   jobs_.emplace_back(std::move(job));
   SDL_AtomicIncRef(&job_count_);
-  SDL_CondSignal(condition_.get());
   SDL_UnlockMutex(mutex_.get());
 
   return true;
@@ -96,22 +97,26 @@ bool JobSystem::insert_job(std::shared_ptr<Job> job) {
   job->submit(this);
   jobs_.emplace_front(std::move(job));
   SDL_AtomicIncRef(&job_count_);
-  SDL_CondSignal(condition_.get());
   SDL_UnlockMutex(mutex_.get());
 
   return true;
 }
 
+void JobSystem::kick_jobs() {
+  SDL_LockMutex(mutex_.get());
+  SDL_CondBroadcast(condition_.get());
+  SDL_UnlockMutex(mutex_.get());
+}
+
 void JobSystem::exec_all_jobs() {
+  kick_jobs();
   while (SDL_AtomicGet(&job_count_) > 0) {
     exec_jobs_();
   }
 }
 
 /*virtual*/ void JobSystem::on_job_done() /*override*/ {
-  SDL_LockMutex(mutex_.get());
-  SDL_CondBroadcast(condition_.get());
-  SDL_UnlockMutex(mutex_.get());
+  kick_jobs();
 }
 
 void JobSystem::exec_jobs_in_thread_() {
@@ -152,8 +157,18 @@ void JobSystem::exec_jobs_() {
   }
 }
 
+const char* JobSystem::get_thread_name(SDL_threadID id) const {
+  for (auto& thread : threads_) {
+    if (SDL_GetThreadID(thread) == id) {
+      return SDL_GetThreadName(thread);
+    }
+  }
+  return "";
+}
+
 /*static*/ int JobSystem::job_thread_(void* args) {
   auto self = static_cast<JobSystem*>(args);
+  PERF_SETUP(self->get_thread_name(SDL_ThreadID()));
   self->exec_jobs_in_thread_();
   return 0;
 }

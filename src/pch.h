@@ -8,6 +8,7 @@
 #include <SDL_ttf.h>
 
 #include <any>
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
@@ -16,6 +17,7 @@
 #include <list>
 #include <memory>
 #include <set>
+#include <stack>
 #include <string>
 #include <string_view>
 #include <unordered_map>

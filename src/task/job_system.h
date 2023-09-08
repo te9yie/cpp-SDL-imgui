@@ -41,6 +41,8 @@ class JobSystem : private JobObserver {
   bool add_job(std::shared_ptr<Job> job);
   bool insert_job(std::shared_ptr<Job> job);
 
+  void kick_jobs();
+
   void exec_all_jobs();
 
  private:
@@ -50,6 +52,7 @@ class JobSystem : private JobObserver {
  private:
   void exec_jobs_in_thread_();
   void exec_jobs_();
+  const char* get_thread_name(SDL_threadID id) const;
 
  private:
   static int job_thread_(void* args);

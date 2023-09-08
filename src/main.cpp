@@ -1,4 +1,5 @@
 #include "debug/gui.h"
+#include "debug/perf.h"
 #include "task/prelude.h"
 
 namespace {
@@ -28,7 +29,7 @@ class LogJob : public task::Job {
 
  protected:
   virtual void on_exec() override {
-    SDL_Log("#%d: in %u", id_, SDL_GetThreadID(nullptr));
+    SDL_Log("#%d: in %u", id_, SDL_ThreadID());
     SDL_Delay(1);
     if (jobs_) {
       for (int i = 0; i < 2; ++i) {
@@ -90,13 +91,15 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return EXIT_FAILURE;
   }
 
-  task::JobSystem jobs;
-  if (!jobs.init(2)) {
-    return EXIT_FAILURE;
-  }
+  debug::Profiler profiler;
 
   debug::Gui gui;
   if (!gui.init(window.get(), renderer.get())) {
+    return EXIT_FAILURE;
+  }
+
+  task::JobSystem jobs;
+  if (!jobs.init(2)) {
     return EXIT_FAILURE;
   }
 
@@ -107,8 +110,11 @@ int main(int /*argc*/, char* /*argv*/[]) {
   task::TaskSystem tasks;
   tasks.set_context(&jobs);
   tasks.set_context(&gui);
+  tasks.set_context(&profiler);
   tasks.set_context(&r);
 
+  tasks.add_task("profiler swap",
+                 [](debug::Profiler* profiler) { profiler->swap(); });
   tasks
       .add_task("handle events",
                 [](task::TaskSystemData* tasks, Renderer* r, debug::Gui* gui) {
@@ -133,6 +139,11 @@ int main(int /*argc*/, char* /*argv*/[]) {
       ->set_exec_on_current_thread();
   tasks.add_task("begin update", [](debug::Gui* gui) { gui->new_frame(); })
       ->set_exec_on_current_thread();
+  tasks.add_task("render profiler", [](debug::Profiler* profiler, debug::Gui*) {
+    ImGui::Begin("Profiler");
+    profiler->show_debug_gui();
+    ImGui::End();
+  });
   tasks.add_task("counter 1", [](task::WorkRef<Counter> counter, debug::Gui*) {
     ImGui::InputInt("count 1", &counter->count);
   });
@@ -153,6 +164,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
       for (auto it : logs) {
         jobs->add_job(std::move(it));
       }
+      jobs->kick_jobs();
     }
   });
   tasks.add_task("begin render", [](Renderer* r) {
@@ -167,6 +179,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
                 })
       ->set_exec_on_current_thread();
 
+  profiler.swap();
   tasks.run();
 
   return EXIT_SUCCESS;

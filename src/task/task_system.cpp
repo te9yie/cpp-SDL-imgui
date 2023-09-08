@@ -13,6 +13,8 @@ void TaskSystem::run() {
   while (data_.is_loop) {
     for (auto& task_job : tasks_) {
       task_job->reset();
+    }
+    for (auto& task_job : tasks_) {
       jobs->add_job(task_job);
     }
     jobs->exec_all_jobs();

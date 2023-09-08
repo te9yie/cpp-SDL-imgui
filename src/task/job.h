@@ -57,6 +57,7 @@ class Job {
  private:
   void dec_prerequisite_count_();
   void dec_child_count_();
+  bool is_prerequisite_(const std::shared_ptr<Job>& job) const;
 
  protected:
   virtual bool on_can_exec() const {
