@@ -4,6 +4,11 @@ namespace task {
 
 /*explicit*/ Job::Job(std::string_view name) : name_(name) {}
 
+void Job::reset() {
+  SDL_assert(state_ == State::NONE || state_ == State::DONE);
+  state_ = State::NONE;
+}
+
 bool Job::can_submit() const {
   return state_ == State::NONE;
 }
@@ -47,9 +52,11 @@ void Job::done() {
   }
   if (parent_) {
     parent_->dec_child_count_();
+    parent_ = nullptr;
   }
   if (observer_) {
     observer_->on_job_done();
+    observer_ = nullptr;
   }
 }
 

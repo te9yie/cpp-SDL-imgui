@@ -1,5 +1,4 @@
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
+#include "debug/gui.h"
 #include "task/prelude.h"
 
 namespace {
@@ -45,7 +44,10 @@ struct Counter {
   int count = 0;
 };
 
-struct DebugGui;
+struct Renderer {
+  SDL_Window* window = nullptr;
+  SDL_Renderer* renderer = nullptr;
+};
 
 }  // namespace
 
@@ -88,29 +90,40 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return EXIT_FAILURE;
   }
 
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-
-  ImGui_ImplSDL2_InitForSDLRenderer(window.get(), renderer.get());
-  ImGui_ImplSDLRenderer2_Init(renderer.get());
-
   task::JobSystem jobs;
   if (!jobs.init(2)) {
     return EXIT_FAILURE;
   }
 
+  debug::Gui gui;
+  if (!gui.init(window.get(), renderer.get())) {
+    return EXIT_FAILURE;
+  }
+
+  Renderer r;
+  r.window = window.get();
+  r.renderer = renderer.get();
+
   task::TaskSystem tasks;
   tasks.set_context(&jobs);
+  tasks.set_context(&gui);
+  tasks.set_context(&r);
 
   tasks
       .add_task("handle events",
-                [](DebugGui*, task::TaskSystemData* tasks) {
+                [](task::TaskSystemData* tasks, Renderer* r, debug::Gui* gui) {
                   SDL_Event e;
                   while (SDL_PollEvent(&e)) {
-                    ImGui_ImplSDL2_ProcessEvent(&e);
+                    gui->handle_events(&e);
                     switch (e.type) {
                       case SDL_QUIT:
                         tasks->is_loop = false;
+                        break;
+                      case SDL_WINDOWEVENT:
+                        if (e.window.event == SDL_WINDOWEVENT_CLOSE &&
+                            e.window.windowID == SDL_GetWindowID(r->window)) {
+                          tasks->is_loop = false;
+                        }
                         break;
                       default:
                         break;
@@ -118,14 +131,15 @@ int main(int /*argc*/, char* /*argv*/[]) {
                   }
                 })
       ->set_exec_on_current_thread();
-
-  tasks.add_task("counter 1", [](task::WorkRef<Counter> counter) {
+  tasks.add_task("begin update", [](debug::Gui* gui) { gui->new_frame(); })
+      ->set_exec_on_current_thread();
+  tasks.add_task("counter 1", [](task::WorkRef<Counter> counter, debug::Gui*) {
     ImGui::InputInt("count 1", &counter->count);
   });
-  tasks.add_task("counter 2", [](task::WorkRef<Counter> counter) {
+  tasks.add_task("counter 2", [](task::WorkRef<Counter> counter, debug::Gui*) {
     ImGui::InputInt("count 2", &counter->count);
   });
-  tasks.add_task("add job", [](task::JobSystem* jobs) {
+  tasks.add_task("add job", [](task::JobSystem* jobs, debug::Gui*) {
     if (ImGui::Button("Add Jobs")) {
       std::vector<std::shared_ptr<LogJob>> logs;
       for (int i = 0; i < 10; ++i) {
@@ -141,35 +155,19 @@ int main(int /*argc*/, char* /*argv*/[]) {
       }
     }
   });
+  tasks.add_task("begin render", [](Renderer* r) {
+    SDL_SetRenderDrawColor(r->renderer, 0x12, 0x34, 0x56, 0xff);
+    SDL_RenderClear(r->renderer);
+  });
+  tasks
+      .add_task("end render",
+                [](Renderer* r, debug::Gui* gui) {
+                  gui->render();
+                  SDL_RenderPresent(r->renderer);
+                })
+      ->set_exec_on_current_thread();
 
-  bool loop = true;
-  while (loop) {
-    {}
-
-    /*
-        int w, h;
-        SDL_GetRendererOutputSize(renderer.get(), &w, &h);
-        */
-
-    ImGui_ImplSDLRenderer2_NewFrame();
-    ImGui_ImplSDL2_NewFrame();
-    ImGui::NewFrame();
-
-    ImGui::Render();
-
-    SDL_SetRenderDrawColor(renderer.get(), 0x12, 0x34, 0x56, 0xff);
-    SDL_RenderClear(renderer.get());
-
-    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
-
-    SDL_RenderPresent(renderer.get());
-  }
-
-  jobs.quit();
-
-  ImGui_ImplSDLRenderer2_Shutdown();
-  ImGui_ImplSDL2_Shutdown();
-  ImGui::DestroyContext();
+  tasks.run();
 
   return EXIT_SUCCESS;
 }

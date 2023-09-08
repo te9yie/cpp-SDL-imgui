@@ -32,6 +32,8 @@ class Job {
   explicit Job(std::string_view name);
   virtual ~Job() = default;
 
+  void reset();
+
   bool can_submit() const;
   void submit(JobObserver* observer);
 

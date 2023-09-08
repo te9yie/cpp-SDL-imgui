@@ -11,6 +11,10 @@ void TaskSystem::run() {
   auto jobs = context_.get<JobSystem>();
   SDL_assert(jobs);
   while (data_.is_loop) {
+    for (auto& task_job : tasks_) {
+      task_job->reset();
+      jobs->add_job(task_job);
+    }
     jobs->exec_all_jobs();
   }
 }
