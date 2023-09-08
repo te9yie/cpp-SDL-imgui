@@ -69,6 +69,8 @@ class ScopedPerfTag {
 
 #define PERF_SETUP(name) \
   debug::Profiler::instance()->setup_for_this_thread(name)
+#define PERF_SWAP() debug::Profiler::instance()->swap()
+
 #define PERF_TAG_NAME_(name, line) tag##line(name)
 #define PERF_TAG_NAME(name, line) PERF_TAG_NAME_(name, line)
 #define PERF_TAG(name) debug::ScopedPerfTag PERF_TAG_NAME(name, __LINE__)

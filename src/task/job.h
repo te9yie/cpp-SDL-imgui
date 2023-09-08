@@ -2,12 +2,6 @@
 
 namespace task {
 
-class JobObserver {
- public:
-  virtual ~JobObserver() = default;
-  virtual void on_job_done() = 0;
-};
-
 class Job {
  public:
   enum class State {
@@ -20,7 +14,6 @@ class Job {
 
  private:
   State state_ = State::NONE;
-  JobObserver* observer_ = nullptr;
   SDL_atomic_t prerequisite_count_;
   std::vector<std::shared_ptr<Job>> prerequisites_;
   std::vector<Job*> dependencies_;
@@ -35,7 +28,7 @@ class Job {
   void reset();
 
   bool can_submit() const;
-  void submit(JobObserver* observer);
+  void submit();
 
   bool can_exec() const;
   void exec();

@@ -18,8 +18,7 @@ void Job::reset() {
 bool Job::can_submit() const {
   return state_ == State::NONE;
 }
-void Job::submit(JobObserver* observer) {
-  observer_ = observer;
+void Job::submit() {
   state_ = State::WAIT_EXEC;
 }
 
@@ -60,10 +59,6 @@ void Job::done() {
   if (parent_) {
     parent_->dec_child_count_();
     parent_ = nullptr;
-  }
-  if (observer_) {
-    observer_->on_job_done();
-    observer_ = nullptr;
   }
 }
 

@@ -79,7 +79,6 @@ void Profiler::show_debug_gui() {
       std::stack<Profiler::TagData> tags;
 
       /*
-      std::size_t max_depth = 0;
       for (auto tag : timeline.tags) {
         if (tag.type == Profiler::TagData::Type::BEGIN) {
           tags.push(tag);
@@ -87,7 +86,6 @@ void Profiler::show_debug_gui() {
           if (tags.empty()) continue;
           auto span = tag.end.count - tags.top().begin.count;
           ImGui::Text("%s: %zu", tags.top().begin.name, span);
-          max_depth = std::max(tags.size(), max_depth);
           tags.pop();
         }
       }
@@ -99,7 +97,6 @@ void Profiler::show_debug_gui() {
       auto region = ImGui::GetContentRegionAvail();
       auto height = ImGui::GetTextLineHeightWithSpacing();
 
-      // ImGui::Dummy(ImVec2(region.x, height * max_depth));
       ImGui::Dummy(ImVec2(region.x, height * 3));
 
       auto count2coord = [](Uint64 x) { return x / 1000.0f; };

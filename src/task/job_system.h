@@ -18,13 +18,14 @@ struct DestroyCondition {
 };
 using ConditionPtr = std::unique_ptr<SDL_cond, DestroyCondition>;
 
-class JobSystem : private JobObserver {
+class JobSystem {
  private:
   JobSystem(const JobSystem&) = delete;
   JobSystem& operator=(const JobSystem&) = delete;
 
  private:
   std::vector<SDL_Thread*> threads_;
+  SDL_atomic_t wait_thread_count_;
   MutexPtr mutex_;
   ConditionPtr condition_;
   SDL_atomic_t is_quit_;
@@ -44,10 +45,6 @@ class JobSystem : private JobObserver {
   void kick_jobs();
 
   void exec_all_jobs();
-
- private:
-  // JobObserver.
-  virtual void on_job_done() override;
 
  private:
   void exec_jobs_in_thread_();

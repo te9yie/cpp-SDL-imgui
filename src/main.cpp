@@ -113,8 +113,6 @@ int main(int /*argc*/, char* /*argv*/[]) {
   tasks.set_context(&profiler);
   tasks.set_context(&r);
 
-  tasks.add_task("profiler swap",
-                 [](debug::Profiler* profiler) { profiler->swap(); });
   tasks
       .add_task("handle events",
                 [](task::TaskSystemData* tasks, Renderer* r, debug::Gui* gui) {

@@ -1,5 +1,6 @@
 #include "task_system.h"
 
+#include "debug/perf.h"
 #include "job_system.h"
 #include "permission.h"
 
@@ -11,6 +12,7 @@ void TaskSystem::run() {
   auto jobs = context_.get<JobSystem>();
   SDL_assert(jobs);
   while (data_.is_loop) {
+    PERF_SWAP();
     for (auto& task_job : tasks_) {
       task_job->reset();
     }

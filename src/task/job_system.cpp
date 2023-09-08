@@ -13,6 +13,7 @@ JobSystem::JobSystem() {}
 bool JobSystem::init(std::size_t thread_count) {
   SDL_AtomicSet(&is_quit_, 0);
   SDL_AtomicSet(&job_count_, 0);
+  SDL_AtomicSet(&wait_thread_count_, 0);
 
   // mutex.
   MutexPtr mutex(SDL_CreateMutex());
@@ -41,7 +42,9 @@ bool JobSystem::init(std::size_t thread_count) {
     SDL_snprintf(name, sizeof(name), "JobThread %2u", i);
     auto thread = threads_[i] =
         SDL_CreateThread(JobSystem::job_thread_, name, this);
-    if (!thread) {
+    if (thread) {
+      SDL_AtomicIncRef(&wait_thread_count_);
+    } else {
       SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "SDL_CreateThread(%s): %s", name,
                       SDL_GetError());
       is_success = false;
@@ -51,6 +54,11 @@ bool JobSystem::init(std::size_t thread_count) {
   if (!is_success) {
     quit();
     return false;
+  }
+
+  // wait for all threads to start.
+  while (SDL_AtomicGet(&wait_thread_count_) > 0) {
+    SDL_Delay(0);
   }
 
   return true;
@@ -80,7 +88,7 @@ bool JobSystem::add_job(std::shared_ptr<Job> job) {
   }
 
   SDL_LockMutex(mutex_.get());
-  job->submit(this);
+  job->submit();
   jobs_.emplace_back(std::move(job));
   SDL_AtomicIncRef(&job_count_);
   SDL_UnlockMutex(mutex_.get());
@@ -94,7 +102,7 @@ bool JobSystem::insert_job(std::shared_ptr<Job> job) {
   }
 
   SDL_LockMutex(mutex_.get());
-  job->submit(this);
+  job->submit();
   jobs_.emplace_front(std::move(job));
   SDL_AtomicIncRef(&job_count_);
   SDL_UnlockMutex(mutex_.get());
@@ -113,10 +121,6 @@ void JobSystem::exec_all_jobs() {
   while (SDL_AtomicGet(&job_count_) > 0) {
     exec_jobs_();
   }
-}
-
-/*virtual*/ void JobSystem::on_job_done() /*override*/ {
-  kick_jobs();
 }
 
 void JobSystem::exec_jobs_in_thread_() {
@@ -149,7 +153,10 @@ void JobSystem::exec_jobs_() {
   }
   if (job->can_done()) {
     job->done();
+    SDL_LockMutex(mutex_.get());
     SDL_AtomicDecRef(&job_count_);
+    SDL_CondBroadcast(condition_.get());
+    SDL_UnlockMutex(mutex_.get());
   } else {
     SDL_LockMutex(mutex_.get());
     jobs_.emplace_front(std::move(job));
@@ -169,6 +176,7 @@ const char* JobSystem::get_thread_name(SDL_threadID id) const {
 /*static*/ int JobSystem::job_thread_(void* args) {
   auto self = static_cast<JobSystem*>(args);
   PERF_SETUP(self->get_thread_name(SDL_ThreadID()));
+  SDL_AtomicDecRef(&self->wait_thread_count_);
   self->exec_jobs_in_thread_();
   return 0;
 }
