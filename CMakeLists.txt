@@ -15,6 +15,18 @@ set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_TEST OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(SDL)
 
+# SDL_image
+FetchContent_Declare(
+    SDL_image
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL_image
+    GIT_TAG release-2.6.x
+    GIT_SHALLOW TRUE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(SDL2IMAGE_DEPS_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL2IMAGE_SAMPLES OFF CACHE BOOL "" FORCE)
+set(SDL2IMAGE_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(SDL_image)
+
 # SDL_ttf
 FetchContent_Declare(
     SDL_ttf
@@ -69,4 +81,5 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE
     src/pch.h)
 target_link_libraries(${PROJECT_NAME} PRIVATE
     SDL2::SDL2-static SDL2::SDL2main
+    SDL2_image::SDL2_image-static
     SDL2_ttf::SDL2_ttf-static)
