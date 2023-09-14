@@ -5,6 +5,7 @@ namespace {
 
 struct DestroyWindow {
   void operator()(SDL_Window* w) const {
+    SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "destroy window.");
     SDL_DestroyWindow(w);
   }
 };
@@ -12,6 +13,7 @@ using WindowPtr = std::unique_ptr<SDL_Window, DestroyWindow>;
 
 struct DestroyRenderer {
   void operator()(SDL_Renderer* r) const {
+    SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "destroy renderer.");
     SDL_DestroyRenderer(r);
   }
 };
@@ -41,6 +43,8 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const char* TITLE = "Game";
   const int SCREEN_WIDTH = 16 * 60;
   const int SCREEN_HEIGH = 9 * 60;
+  SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "create window. (%d x %d)", SCREEN_WIDTH,
+               SCREEN_HEIGH);
   WindowPtr window(SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED,
                                     SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
                                     SCREEN_HEIGH, SDL_WINDOW_RESIZABLE));
@@ -50,6 +54,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return EXIT_FAILURE;
   }
 
+  SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "create renderer.");
   RendererPtr renderer(SDL_CreateRenderer(
       window.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC));
   if (!renderer) {
@@ -58,9 +63,9 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return EXIT_FAILURE;
   }
 
+  SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "initialize ImGui.");
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-
   ImGui_ImplSDL2_InitForSDLRenderer(window.get(), renderer.get());
   ImGui_ImplSDLRenderer2_Init(renderer.get());
 
@@ -101,6 +106,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
     SDL_RenderPresent(renderer.get());
   }
 
+  SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "shutdown ImGui.");
   ImGui_ImplSDLRenderer2_Shutdown();
   ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();
