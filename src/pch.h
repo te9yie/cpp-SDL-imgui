@@ -9,7 +9,13 @@
 #include <SDL_net.h>
 #include <SDL_ttf.h>
 
+#include <algorithm>
 #include <cstdlib>
+#include <deque>
 #include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include "imgui.h"

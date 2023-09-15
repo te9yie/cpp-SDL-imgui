@@ -1,25 +1,6 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
-
-namespace {
-
-struct DestroyWindow {
-  void operator()(SDL_Window* w) const {
-    SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "destroy window.");
-    SDL_DestroyWindow(w);
-  }
-};
-using WindowPtr = std::unique_ptr<SDL_Window, DestroyWindow>;
-
-struct DestroyRenderer {
-  void operator()(SDL_Renderer* r) const {
-    SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "destroy renderer.");
-    SDL_DestroyRenderer(r);
-  }
-};
-using RendererPtr = std::unique_ptr<SDL_Renderer, DestroyRenderer>;
-
-}  // namespace
+#include "sdl2/prelude.h"
 
 int main(int /*argc*/, char* /*argv*/[]) {
 #if defined(_MSC_VER)
@@ -58,9 +39,9 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const int SCREEN_HEIGH = 9 * 60;
   SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "create window. (%d x %d)", SCREEN_WIDTH,
                SCREEN_HEIGH);
-  WindowPtr window(SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED,
-                                    SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
-                                    SCREEN_HEIGH, SDL_WINDOW_RESIZABLE));
+  sdl2::WindowPtr window(SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED,
+                                          SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
+                                          SCREEN_HEIGH, SDL_WINDOW_RESIZABLE));
   if (!window) {
     SDL_LogCritical(SDL_LOG_CATEGORY_VIDEO, "SDL_CreateWindow: %s",
                     SDL_GetError());
@@ -68,7 +49,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   }
 
   SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "create renderer.");
-  RendererPtr renderer(SDL_CreateRenderer(
+  sdl2::RendererPtr renderer(SDL_CreateRenderer(
       window.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC));
   if (!renderer) {
     SDL_LogCritical(SDL_LOG_CATEGORY_VIDEO, "SDL_CreateRenderer: %s",
