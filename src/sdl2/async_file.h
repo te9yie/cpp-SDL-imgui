@@ -40,4 +40,32 @@ class AsyncFile {
   }
 };
 
+class AsyncFileLoader {
+ private:
+  AsyncFileLoader(const AsyncFileLoader&) = delete;
+  AsyncFileLoader& operator=(const AsyncFileLoader&) = delete;
+
+ private:
+  std::deque<std::shared_ptr<AsyncFile>> files_;
+  SDL_Thread* thread_ = nullptr;
+  MutexPtr mutex_;
+  ConditionPtr condition_;
+  volatile bool is_quit_ = false;
+
+ public:
+  AsyncFileLoader() = default;
+  virtual ~AsyncFileLoader();
+
+  bool init();
+  void quit();
+
+  void submit(std::shared_ptr<AsyncFile> file);
+
+ private:
+  void load_files_();
+
+ private:
+  static int thread_func_(void* args);
+};
+
 }  // namespace sdl2
