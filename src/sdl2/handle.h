@@ -93,62 +93,46 @@ class Handle final {
 };
 
 /// @brief swap
-/// @param lhs[in,out]
-/// @param rhs[in,out]
 inline void swap(Handle& lhs, Handle& rhs) {
   lhs.swap(rhs);
 }
 
-/// @brief ハンドル管理されたオブジェクト群
-template <typename T>
-class HandleObjects : private HandleObserver {
+/// @brief ハンドル群
+class Handles : private HandleObserver {
  private:
-  HandleObjects(const HandleObjects&) = delete;
-  HandleObjects& operator=(const HandleObjects&) = delete;
+  Handles(const Handles&) = delete;
+  Handles& operator=(const Handles&) = delete;
+
+ public:
+  using OnRemoveFunc = std::function<void(const HandleId&)>;
 
  private:
   struct Entry {
-    SDL_atomic_t ref_count;
+    mutable SDL_atomic_t ref_count;
     Uint32 revision = 0;
-    bool remove_flag = false;
-    std::unique_ptr<T> object;
   };
 
  private:
-  Uint32 peak_index_ = 0;
-  std::deque<Uint32> index_stock_;
   std::deque<Entry> entries_;
+  std::deque<Uint32> index_stock_;
   std::deque<HandleId> remove_ids_;
   MutexPtr remove_mutex_;
 
  public:
-  HandleObjects() = default;
+  Handles() : remove_mutex_(SDL_CreateMutex()) {}
 
-  /// @brief オブジェクトの追加
-  /// @param p[in,out] 追加するオブジェクトのポインタ
+  /// @brief ハンドルの生成
   /// @return ハンドル
-  Handle add(std::unique_ptr<T> p) {
+  Handle make_handle() {
     auto index = find_index_();
     auto& entry = entries_[index];
-    entry.object = std::move(p);
     HandleId id{index, entry.revision};
     return Handle(id, this);
   }
 
-  /// @brief オブジェクトの構築
-  /// @param args[in] オブジェクトの引数
-  /// @return ハンドル
-  template <typename... Args>
-  Handle emplace(Args&&... args) {
-    auto index = find_index_();
-    auto& entry = entries_[index];
-    entry.object = std::make_unique<T>(std::forward<Args>(args)...);
-    HandleId id{index, entry.revision};
-    return Handle(id, this);
-  }
-
-  /// @brief オブジェクトの削除
-  void remove_dropped_objects() {
+  /// @brief 参照されなくなったハンドルの削除
+  /// @param on_remove ハンドル削除時に呼び出す関数
+  void remove_dropped_handles(const OnRemoveFunc& on_remove = OnRemoveFunc()) {
     std::deque<HandleId> ids;
     {
       ScopedLock lock(remove_mutex_);
@@ -156,37 +140,23 @@ class HandleObjects : private HandleObserver {
       remove_ids_.clear();
     }
     for (auto& id : ids) {
-      auto& entry = entries_[id.index];
-      entry.revision = std::max<Uint32>(entry.revision + 1, 1);
-      entry.object.reset();
-      entry.remove_flag = false;
       index_stock_.emplace_back(id.index);
+      if (on_remove) {
+        on_remove(id);
+      }
     }
   }
 
-  /// @brief オブジェクトの取得
-  /// @param id[in] ハンドルID
-  /// @return オブジェクトのポインタ
-  const T* get(const HandleId& id) const {
-    if (!exists(id)) {
-      return nullptr;
-    }
-    auto& entry = entries_[id.index];
-    return entry.object.get();
+  /// @brief ハンドル管理領域のクリア
+  void clear() {
+    SDL_assert(entries_.size() == index_stock_.size());
+    entries_.clear();
+    entries_.shrink_to_fit();
+    index_stock_.clear();
+    index_stock_.shrink_to_fit();
   }
 
-  /// @brief オブジェクトの取得
-  /// @param id[in] ハンドルID
-  /// @return オブジェクトのポインタ
-  T* get(const HandleId& id) {
-    if (!exists(id)) {
-      return nullptr;
-    }
-    auto& entry = entries_[id.index];
-    return entry.object.get();
-  }
-
-  /// @brief オブジェクトが存在するか
+  /// @brief ハンドルが存在するか
   /// @param id[in] ハンドルID
   /// @retval true 存在する
   /// @retval false 存在しない
@@ -195,17 +165,17 @@ class HandleObjects : private HandleObserver {
       return false;
     }
     auto& entry = entries_[id.index];
-    if (entry.remove_flag) {
+    if (id.revision != entry.revision) {
       return false;
     }
-    return id.revision == entry.revision;
+    return true;
   }
 
  private:
   std::uint32_t find_index_() {
     if (index_stock_.empty()) {
-      SDL_assert(peak_index_ < SDL_MAX_UINT32);
-      auto index = peak_index_++;
+      auto index = static_cast<Uint32>(entries_.size());
+      SDL_assert(index < SDL_MAX_UINT32);
       auto& entry = entries_.emplace_back();
       SDL_AtomicSet(&entry.ref_count, 0);
       entry.revision = 1;
@@ -234,9 +204,9 @@ class HandleObjects : private HandleObserver {
     auto& entry = entries_[id.index];
     SDL_assert(SDL_AtomicGet(&entry.ref_count) > 0);
     if (SDL_AtomicDecRef(&entry.ref_count)) {
+      entry.revision = std::max<Uint32>(entry.revision + 1, 1);
       ScopedLock lock(remove_mutex_);
       remove_ids_.emplace_back(id);
-      entry.remove_flag = true;
     }
   }
 };
