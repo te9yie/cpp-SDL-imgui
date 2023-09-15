@@ -108,7 +108,7 @@ class Handles : private HandleObserver {
 
  private:
   struct Entry {
-    mutable SDL_atomic_t ref_count;
+    SDL_atomic_t ref_count;
     Uint32 revision = 0;
   };
 
@@ -150,6 +150,7 @@ class Handles : private HandleObserver {
   /// @brief ハンドル管理領域のクリア
   void clear() {
     SDL_assert(entries_.size() == index_stock_.size());
+    SDL_assert(remove_ids_.empty());
     entries_.clear();
     entries_.shrink_to_fit();
     index_stock_.clear();
