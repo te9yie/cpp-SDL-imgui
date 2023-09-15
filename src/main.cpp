@@ -34,11 +34,24 @@ int main(int /*argc*/, char* /*argv*/[]) {
   }
   atexit(SDL_Quit);
 
+  if (IMG_Init(IMG_INIT_PNG) < 0) {
+    SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "IMG_Init: %s", IMG_GetError());
+    return EXIT_FAILURE;
+  }
+  atexit(IMG_Quit);
+
   if (TTF_Init() < 0) {
     SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "TTF_Init: %s", TTF_GetError());
     return EXIT_FAILURE;
   }
   atexit(TTF_Quit);
+
+  if (SDLNet_Init() < 0) {
+    SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "SDLNet_Init: %s",
+                    SDLNet_GetError());
+    return EXIT_FAILURE;
+  }
+  atexit(SDLNet_Quit);
 
   const char* TITLE = "Game";
   const int SCREEN_WIDTH = 16 * 60;
