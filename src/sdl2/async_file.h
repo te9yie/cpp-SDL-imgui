@@ -40,6 +40,7 @@ class AsyncFile {
   }
 };
 
+/// @brief 非同期ファイル読み込み
 class AsyncFileLoader {
  private:
   AsyncFileLoader(const AsyncFileLoader&) = delete;
