@@ -85,6 +85,7 @@ bool AsyncFileLoader::init() {
 
 void AsyncFileLoader::quit() {
   SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "shutdown AsyncFileLoader.");
+
   if (thread_) {
     {
       ScopedLock lock(mutex_);

@@ -1,5 +1,6 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "sdl2/ecs/prelude.h"
 #include "sdl2/prelude.h"
 
 int main(int /*argc*/, char* /*argv*/[]) {
@@ -34,8 +35,8 @@ int main(int /*argc*/, char* /*argv*/[]) {
   }
   atexit(SDLNet_Quit);
 
-  sdl2::AsyncFileLoader loader;
-  if (!loader.init()) {
+  sdl2::ecs::AssetManager assets;
+  if (!assets.init()) {
     return EXIT_FAILURE;
   }
 
