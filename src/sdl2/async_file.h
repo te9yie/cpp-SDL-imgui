@@ -16,8 +16,9 @@ class AsyncFile {
 
  private:
   std::string path_;
+  std::size_t data_size_ = 0;
+  std::unique_ptr<Uint8[]> data_;
   volatile State state_ = State::NONE;
-  std::vector<Uint8> data_;
 
  public:
   explicit AsyncFile(std::string_view path);
@@ -28,16 +29,19 @@ class AsyncFile {
     return path_;
   }
 
-  bool is_loaded() const {
-    return state_ == State::LOADED;
-  }
-  bool is_failed() const {
-    return state_ == State::FAILED;
+  bool is_state(State state) const {
+    return state_ == state;
   }
 
-  const std::vector<Uint8>& data() const {
-    return data_;
+  std::size_t data_size() const {
+    return data_size_;
   }
+
+  const Uint8* data() const {
+    return data_.get();
+  }
+
+  Uint8* release_data();
 };
 
 /// @brief 非同期ファイル読み込み
@@ -60,7 +64,7 @@ class AsyncFileLoader {
   bool init();
   void quit();
 
-  void submit(std::shared_ptr<AsyncFile> file);
+  bool submit(std::shared_ptr<AsyncFile> file);
 
  private:
   void load_files_();

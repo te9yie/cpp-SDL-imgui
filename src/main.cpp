@@ -34,6 +34,11 @@ int main(int /*argc*/, char* /*argv*/[]) {
   }
   atexit(SDLNet_Quit);
 
+  sdl2::AsyncFileLoader loader;
+  if (!loader.init()) {
+    return EXIT_FAILURE;
+  }
+
   const char* TITLE = "Game";
   const int SCREEN_WIDTH = 16 * 60;
   const int SCREEN_HEIGH = 9 * 60;

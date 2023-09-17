@@ -18,12 +18,12 @@ void AsyncFile::load() {
   }
 
   Sint64 size = SDL_RWsize(rw);
-  data_.resize(size);
+  data_size_ = static_cast<std::size_t>(size);
+  data_ = std::make_unique<uint8_t[]>(data_size_);
 
   Sint64 loaded_size = 0;
   while (loaded_size < size) {
-    auto n =
-        SDL_RWread(rw, data_.data() + loaded_size, 1, (size - loaded_size));
+    auto n = SDL_RWread(rw, data_.get() + loaded_size, 1, (size - loaded_size));
     loaded_size += n;
     if (n == 0) {
       break;
@@ -40,11 +40,20 @@ void AsyncFile::load() {
   state_ = State::LOADED;
 }
 
+Uint8* AsyncFile::release_data() {
+  SDL_assert(state_ != State::LOADING);
+  state_ = State::NONE;
+  data_size_ = 0;
+  return data_.release();
+}
+
 /*virtual*/ AsyncFileLoader::~AsyncFileLoader() {
   quit();
 }
 
 bool AsyncFileLoader::init() {
+  SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "initialize AsyncFileLoader.");
+
   MutexPtr mutex(SDL_CreateMutex());
   if (!mutex) {
     SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "SDL_CreateMutex: %s",
@@ -75,6 +84,7 @@ bool AsyncFileLoader::init() {
 }
 
 void AsyncFileLoader::quit() {
+  SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "shutdown AsyncFileLoader.");
   if (thread_) {
     {
       ScopedLock lock(mutex_);
@@ -89,10 +99,17 @@ void AsyncFileLoader::quit() {
   condition_.reset();
 }
 
-void AsyncFileLoader::submit(std::shared_ptr<AsyncFile> file) {
+bool AsyncFileLoader::submit(std::shared_ptr<AsyncFile> file) {
+  if (!file) {
+    return false;
+  }
+  if (file->is_state(AsyncFile::State::LOADING)) {
+    return false;
+  }
   ScopedLock lock(mutex_);
   files_.emplace_back(std::move(file));
   SDL_CondBroadcast(condition_.get());
+  return true;
 }
 
 void AsyncFileLoader::load_files_() {
