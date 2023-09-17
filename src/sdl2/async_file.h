@@ -15,7 +15,7 @@ class AsyncFile {
   };
 
  private:
-  std::string path_;
+  const std::string path_;
   std::size_t data_size_ = 0;
   std::unique_ptr<Uint8[]> data_;
   volatile State state_ = State::NONE;
