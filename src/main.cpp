@@ -1,5 +1,6 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "sdl2/assets/loader.h"
 
 namespace {
 
@@ -76,11 +77,18 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return EXIT_FAILURE;
   }
 
+  sdl2::assets::AssetLoader loader;
+  if (!loader.init()) {
+    return EXIT_FAILURE;
+  }
+
   SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "initialize ImGui.");
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGui_ImplSDL2_InitForSDLRenderer(window.get(), renderer.get());
   ImGui_ImplSDLRenderer2_Init(renderer.get());
+
+  std::vector<sdl2::assets::AssetHandle> handles;
 
   bool loop = true;
   while (loop) {
@@ -108,6 +116,17 @@ int main(int /*argc*/, char* /*argv*/[]) {
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
+
+    loader.remove_dropped_assets();
+
+    ImGui::Begin("Assets");
+    if (ImGui::Button("Add")) {
+      char buff[128];
+      SDL_snprintf(buff, sizeof(buff), "assets%02zu.data", handles.size());
+      handles.emplace_back(loader.load(buff));
+    }
+    loader.render_debug_gui();
+    ImGui::End();
 
     ImGui::Render();
 
