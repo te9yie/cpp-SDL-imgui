@@ -9,11 +9,18 @@
 #include <SDL_net.h>
 #include <SDL_ttf.h>
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <deque>
 #include <memory>
+#include <new>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>

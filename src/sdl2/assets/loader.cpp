@@ -94,17 +94,18 @@ Uint32 AssetLoader::gen_index_() {
 }
 
 void AssetLoader::render_debug_gui() {
-  ImGui::BeginListBox("Assets");
-  char buff[1024];
-  for (auto& asset_data : assets_) {
-    if (SDL_AtomicGet(&asset_data->ref_count) > 0) {
-      SDL_snprintf(buff, sizeof(buff), "r#%02d %s",
-                   SDL_AtomicGet(&asset_data->ref_count),
-                   asset_data->path.c_str());
-      ImGui::Selectable(buff);
+  if (ImGui::BeginListBox("Assets")) {
+    char buff[1024];
+    for (auto& asset_data : assets_) {
+      if (SDL_AtomicGet(&asset_data->ref_count) > 0) {
+        SDL_snprintf(buff, sizeof(buff), "r#%02d %s",
+                     SDL_AtomicGet(&asset_data->ref_count),
+                     asset_data->path.c_str());
+        ImGui::Selectable(buff);
+      }
     }
+    ImGui::EndListBox();
   }
-  ImGui::EndListBox();
 }
 
 }  // namespace sdl2::assets

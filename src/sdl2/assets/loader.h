@@ -12,7 +12,7 @@ class AssetLoader : private AssetHandleObserver {
  private:
   struct AssetData {
     std::string path;
-    Uint32 revision = 1;
+    Uint32 revision = 0;
     SDL_atomic_t ref_count;
   };
 
