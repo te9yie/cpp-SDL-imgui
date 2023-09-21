@@ -79,6 +79,8 @@ class Chunk final {
   Uint32 peak_index_ = 0;
   Uint32 next_index_ = 0;
   Uint32 exist_count_ = 0;
+  Chunk* chunk_link_ = nullptr;
+  Chunk* same_archetype_chunk_link_ = nullptr;
 
  public:
   Chunk(Tuple&& tuple, Uint32 buff_size)
@@ -144,6 +146,20 @@ class Chunk final {
 
   bool is_full() const {
     return next_index_ >= capacity();
+  }
+
+  void link_chunk(Chunk* c) {
+    chunk_link_ = c;
+  }
+  Chunk* next_chunk() const {
+    return chunk_link_;
+  }
+
+  void link_same_archetype_chunk(Chunk* c) {
+    same_archetype_chunk_link_ = c;
+  }
+  Chunk* next_same_archetype_chunk() const {
+    return same_archetype_chunk_link_;
   }
 
  private:

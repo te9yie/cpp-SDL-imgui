@@ -18,6 +18,7 @@ bool AssetLoader::init() {
 }
 
 void AssetLoader::quit() {
+  remove_dropped_assets();
   if (remove_mutex_) {
     SDL_DestroyMutex(remove_mutex_);
     remove_mutex_ = nullptr;
@@ -56,10 +57,29 @@ void AssetLoader::remove_dropped_assets() {
     if (auto it = id_map_.find(asset_data->path); it != id_map_.end()) {
       id_map_.erase(it);
     }
+    if (asset_data->chunk) {
+      asset_data->chunk->destruct(asset_data->chunk_index);
+      asset_data->chunk = nullptr;
+      asset_data->chunk_index = 0;
+    }
     asset_data->path.clear();
     asset_data->revision = std::max<Uint32>(asset_data->revision + 1, 1);
     free_indices_.emplace_back(id.index);
   }
+}
+
+bool AssetLoader::exists(const AssetId& id) const {
+  if (!id) {
+    return false;
+  }
+  if (id.index >= assets_.size()) {
+    return false;
+  }
+  auto asset_data = assets_[id.index].get();
+  if (id.revision != asset_data->revision) {
+    return false;
+  }
+  return true;
 }
 
 Uint32 AssetLoader::gen_index_() {

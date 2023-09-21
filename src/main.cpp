@@ -83,16 +83,13 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return EXIT_FAILURE;
   }
 
-  sdl2::ecs::Chunk chunk(sdl2::ecs::Tuple::make<sdl2::assets::AssetHandle>(),
-                         256);
-
   SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "initialize ImGui.");
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGui_ImplSDL2_InitForSDLRenderer(window.get(), renderer.get());
   ImGui_ImplSDLRenderer2_Init(renderer.get());
 
-  std::list<Uint32> chunk_indices;
+  std::list<sdl2::assets::AssetHandle> handles;
 
   bool loop = true;
   while (loop) {
@@ -125,17 +122,11 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
     ImGui::Begin("Debug");
 
-    ImGui::Text("chunk: %zu/%zu", chunk.size(), chunk.capacity());
-
-    ImGui::Separator();
-
     if (ImGui::Button("Add")) {
       char buff[128];
-      SDL_snprintf(buff, sizeof(buff), "assets%02zu.data", chunk.size());
-      auto index = chunk.construct();
-      auto [handle] = chunk.get<sdl2::assets::AssetHandle&>(index);
-      handle = loader.load(buff);
-      chunk_indices.emplace_back(index);
+      SDL_snprintf(buff, sizeof(buff), "assets%02zu.data", handles.size());
+      auto handle = loader.load(buff);
+      handles.emplace_back(std::move(handle));
     }
     loader.render_debug_gui();
     ImGui::End();
@@ -148,10 +139,6 @@ int main(int /*argc*/, char* /*argv*/[]) {
     ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
 
     SDL_RenderPresent(renderer.get());
-  }
-
-  for (auto index : chunk_indices) {
-    chunk.destruct(index);
   }
 
   SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "shutdown ImGui.");
