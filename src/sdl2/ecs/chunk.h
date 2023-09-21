@@ -5,6 +5,26 @@
 
 namespace sdl2::ecs {
 
+/// @code
+/// buff_'s memory layout.
+/// +----------------+
+/// | Block[0]       |
+/// | +------------+ |
+/// | | Index[0]   | |
+/// | +------------+ |
+/// | | Components | |
+/// | | ...        | |
+/// | +------------+ |
+/// +----------------+
+/// | Block[1]       |
+/// | +------------+ |
+/// | | Index[1]   | |
+/// | +------------+ |
+/// | | Components | |
+/// | | ...        | |
+/// | +------------+ |
+/// ...
+/// @endcode
 class Chunk final {
  private:
   Chunk(const Chunk&) = delete;
@@ -20,13 +40,13 @@ class Chunk final {
     using OffsetArray = std::array<Tuple::Offset, sizeof...(Ts)>;
 
    private:
-    std::uint8_t* base_ = nullptr;
+    Uint8* base_ = nullptr;
     OffsetArray offsets_;
 
    public:
     AccessTuple() = default;
 
-    AccessTuple(std::uint8_t* p, const OffsetArray& offsets)
+    AccessTuple(Uint8* p, const OffsetArray& offsets)
         : base_(p), offsets_(offsets) {}
 
     template <std::size_t I>
@@ -37,67 +57,76 @@ class Chunk final {
 
  public:
   struct Index {
-    std::size_t next = 0;
+    Uint32 next = 0;
     bool exists = false;
   };
 
+  static_assert(sizeof(Index) % alignof(std::max_align_t) == 0);
+
+  static Uint32 calc_block_size(const Tuple& tuple) {
+    auto align = alignof(std::max_align_t);
+    auto r = tuple.memory_size() % align;
+    auto components_size =
+        r == 0 ? tuple.memory_size() : tuple.memory_size() + align - r;
+    return static_cast<Uint32>(sizeof(Index) + components_size);
+  }
+
  private:
   Tuple tuple_;
-  std::size_t buff_size_ = 0;
-  std::unique_ptr<std::uint8_t[]> buff_;
-  std::vector<Index> indices_;
-  std::size_t peak_index_ = 0;
-  std::size_t next_index_ = 0;
-  std::size_t exist_count_ = 0;
+  Uint32 block_size_ = 0;
+  Uint32 buff_size_ = 0;
+  std::unique_ptr<Uint8[]> buff_;
+  Uint32 peak_index_ = 0;
+  Uint32 next_index_ = 0;
+  Uint32 exist_count_ = 0;
 
  public:
-  Chunk(Tuple&& tuple, std::size_t buff_size)
+  Chunk(Tuple&& tuple, Uint32 buff_size)
       : tuple_(std::move(tuple)),
-        buff_size_(std::max<std::size_t>(buff_size, tuple_.memory_size())),
-        buff_(std::make_unique<std::uint8_t[]>(buff_size_)),
-        indices_(buff_size_ / tuple_.memory_size()) {}
+        block_size_(calc_block_size(tuple_)),
+        buff_size_(std::max<Uint32>(buff_size, block_size_)),
+        buff_(std::make_unique<Uint8[]>(buff_size_)) {}
 
   ~Chunk() {
     SDL_assert(exist_count_ == 0);
   }
 
-  std::size_t construct() {
-    assert(next_index_ < capacity());
+  Uint32 construct() {
+    SDL_assert(next_index_ < capacity());
     if (next_index_ == peak_index_) {
-      indices_[peak_index_].next = peak_index_ + 1;
+      index_ptr_(peak_index_)->next = peak_index_ + 1;
       ++peak_index_;
     }
-    auto index = next_index_;
-    indices_[index].exists = true;
-    next_index_ = indices_[index].next;
 
-    auto p = buff_.get() + index * tuple_.memory_size();
-    tuple_.construct(p);
+    auto index = next_index_;
+    index_ptr_(index)->exists = true;
+    next_index_ = index_ptr_(index)->next;
+
+    tuple_.construct(components_ptr_(index));
     ++exist_count_;
     return index;
   }
 
-  void destruct(std::size_t index) {
-    assert(index < capacity());
-    auto p = buff_.get() + index * tuple_.memory_size();
-    tuple_.destruct(p);
+  void destruct(Uint32 index) {
+    SDL_assert(index < capacity());
+    tuple_.destruct(components_ptr_(index));
 
-    indices_[index].exists = false;
-    indices_[index].next = next_index_;
+    index_ptr_(index)->exists = false;
+    index_ptr_(index)->next = next_index_;
     next_index_ = index;
     --exist_count_;
   }
 
-  bool exists(std::size_t index) const {
-    assert(index < capacity());
-    return indices_[index].exists;
+  bool exists(Uint32 index) const {
+    SDL_assert(index < capacity());
+    return index_ptr_(index)->exists;
   }
 
   template <typename... Ts>
-  AccessTuple<Ts...> get(std::size_t index) {
+  AccessTuple<Ts...> get(Uint32 index) {
     SDL_assert(exists(index));
     return AccessTuple<Ts...>(
-        buff_.get() + index * tuple_.memory_size(),
+        components_ptr_(index),
         std::array<Tuple::Offset, sizeof...(Ts)>{tuple_.offset<Ts>()...});
   }
 
@@ -105,16 +134,33 @@ class Chunk final {
     return tuple_;
   }
 
-  std::size_t size() const {
+  Uint32 size() const {
     return peak_index_;
   }
 
-  std::size_t capacity() const {
-    return indices_.size();
+  Uint32 capacity() const {
+    return buff_size_ / block_size_;
   }
 
   bool is_full() const {
     return next_index_ >= capacity();
+  }
+
+ private:
+  Index* index_ptr_(Uint32 i) {
+    return reinterpret_cast<Index*>(buff_.get() + i * block_size_);
+  }
+
+  const Index* index_ptr_(Uint32 i) const {
+    return reinterpret_cast<const Index*>(buff_.get() + i * block_size_);
+  }
+
+  Uint8* components_ptr_(Uint32 i) {
+    return buff_.get() + i * block_size_ + sizeof(Index);
+  }
+
+  const Uint8* components_ptr_(Uint32 i) const {
+    return buff_.get() + i * block_size_ + sizeof(Index);
   }
 };
 

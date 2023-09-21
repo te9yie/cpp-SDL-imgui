@@ -92,7 +92,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   ImGui_ImplSDL2_InitForSDLRenderer(window.get(), renderer.get());
   ImGui_ImplSDLRenderer2_Init(renderer.get());
 
-  std::list<std::size_t> chunk_indices;
+  std::list<Uint32> chunk_indices;
 
   bool loop = true;
   while (loop) {
